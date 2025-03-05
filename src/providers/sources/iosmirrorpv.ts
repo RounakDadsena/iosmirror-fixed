@@ -8,7 +8,7 @@ import { NotFoundError } from '@/utils/errors';
 // thanks @TPN for this
 // See how to set this up yourself: https://gist.github.com/Pasithea0/9ba31d16580800e899c245a4379e902b
 
-const baseUrl = 'https://iosmirror.cc';
+const baseUrl = 'https://netfree.cc';
 const baseUrl2 = 'https://prox-beige.vercel.app/iosmirror.cc:443/pv';
 
 type metaT = {
