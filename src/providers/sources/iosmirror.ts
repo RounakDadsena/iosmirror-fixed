@@ -24,7 +24,7 @@ const fetchNetflixCookie = async (): Promise<string> => {
 };
 
 // Function to make request with required headers
-const fetchData = async (endpoint: string, signal: AbortSignal, queryParams: any = {}): Promise<any> => {
+const fetchData = async (endpoint: string, signal: AbortSignal | undefined, queryParams: any = {}): Promise<any> => {
   try {
     const cookie = await fetchNetflixCookie();
     const url = new URL(`${baseUrl}${endpoint}`);
@@ -80,12 +80,15 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   };
 
   ctx.progress(10);
-  
-  const searchRes = await fetchData('/search.php', ctx.signal, { s: ctx.media.title });
+
+  // Ensure `signal` is passed only if it exists in the context
+  const signal = (ctx as any).signal; // type cast since `signal` isn't defined in the base interface
+  const searchRes = await fetchData('/search.php', signal ? signal : undefined, { s: ctx.media.title });
+
   if (searchRes.status !== 'y' || !searchRes.searchResult) throw new NotFoundError(searchRes.error);
 
   async function getMeta(id: string) {
-    return fetchData('/post.php', ctx.signal, { id });
+    return fetchData('/post.php', signal ? signal : undefined, { id });
   }
   ctx.progress(30);
 
@@ -111,7 +114,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
     const seasonId = metaRes?.season.find((x: { s: string; id: string }) => Number(x.s) === showMedia.season.number)?.id;
     if (!seasonId) throw new NotFoundError('Season not available');
 
-    const episodeRes = await fetchData('/episodes.php', ctx.signal, { s: seasonId, series: id });
+    const episodeRes = await fetchData('/episodes.php', signal ? signal : undefined, { s: seasonId, series: id });
 
     const episodeId = episodeRes.episodes.find(
       (x: { ep: string; s: string; id: string }) => x.ep === `E${showMedia.episode.number}` && x.s === `S${showMedia.season.number}`,
@@ -122,7 +125,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   }
 
   // Removing the proxy and fetching the playlist directly
-  const playlistRes = await fetchData('/playlist.php', ctx.signal, { id });
+  const playlistRes = await fetchData('/playlist.php', signal ? signal : undefined, { id });
 
   ctx.progress(50);
   let autoFile = playlistRes[0].sources.find((source: { file: string; label: string }) => source.label === 'Auto')?.file ||
