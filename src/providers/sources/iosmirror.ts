@@ -5,8 +5,9 @@ import { MovieScrapeContext, ShowScrapeContext } from '@/utils/context';
 import { makeCookieHeader } from '@/utils/cookie';
 import { NotFoundError } from '@/utils/errors';
 
-// Define Base URL
+// Define Base URLs
 const baseUrl = 'https://netfree.cc/';
+const baseUrl2 = 'https://prox-beige.vercel.app/iosmirror.cc:443';
 
 // Function to fetch Netflix Cookie
 const fetchNetflixCookie = async (): Promise<string> => {
@@ -27,6 +28,51 @@ const fetchNetflixCookie = async (): Promise<string> => {
   }
 };
 
+// Function to make request with required headers
+const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string> => {
+  try {
+    // Fetch Netflix cookie dynamically
+    const cookie = await fetchNetflixCookie();
+
+    const response = await fetch(`${baseUrl}${endpoint}`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      headers: {
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'en-US,en;q=0.9,en-IN;q=0.8',
+        'cache-control': 'no-cache',
+        pragma: 'no-cache',
+        cookie: cookie,
+        priority: 'u=0, i',
+        'sec-ch-ua': '"Chromium";v="130", "Microsoft Edge";v="130", "Not?A_Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'same-origin',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+      },
+      referrer: 'https://iosmirror.cc/movies',
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      body: null,
+      signal: signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.text(); // Adjust to `.json()` if expecting JSON
+    console.log('Response:', data);
+    return data;
+  } catch (error: unknown) {
+    console.error('Fetch error:', error);
+    throw error;
+  }
+};
+
 // Universal Scraper Function
 const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput> => {
   const hash = {
@@ -38,16 +84,15 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   ctx.progress(10);
 
   const searchRes = await ctx.proxiedFetcher('/search.php', {
-    baseUrl: baseUrl,
+    baseUrl: baseUrl2,
     query: { s: ctx.media.title },
     headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
   });
-
   if (searchRes.status !== 'y' || !searchRes.searchResult) throw new NotFoundError(searchRes.error);
 
   async function getMeta(id: string) {
     return ctx.proxiedFetcher('/post.php', {
-      baseUrl: baseUrl,
+      baseUrl: baseUrl2,
       query: { id },
       headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
     });
@@ -77,7 +122,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
     if (!seasonId) throw new NotFoundError('Season not available');
 
     const episodeRes = await ctx.proxiedFetcher('/episodes.php', {
-      baseUrl: baseUrl,
+      baseUrl: baseUrl2,
       query: { s: seasonId, series: id },
       headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
     });
@@ -87,7 +132,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
 
     while (episodeRes.nextPageShow === 1) {
       const nextPageRes = await ctx.proxiedFetcher('/episodes.php', {
-        baseUrl: baseUrl,
+        baseUrl: baseUrl2,
         query: { s: seasonId, series: id, page: currentPage.toString() },
         headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
       });
@@ -105,7 +150,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   }
 
   const playlistRes = await ctx.proxiedFetcher('/playlist.php?', {
-    baseUrl: baseUrl,
+    baseUrl: baseUrl2,
     query: { id: id! }, // Use non-null assertion since 'id' is now guaranteed to be defined
     headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
   });
@@ -117,7 +162,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   if (!autoFile) autoFile = playlistRes[0].sources[0]?.file;
   if (!autoFile) throw new Error('Failed to fetch playlist');
 
-  const playlist = `${baseUrl}${autoFile}`;
+  const playlist = `https://prox-beige.vercel.app/m3u8-proxy?url=${encodeURIComponent(`${baseUrl}${autoFile}`)}&headers=${encodeURIComponent(JSON.stringify({ referer: baseUrl, cookie: makeCookieHeader({ hd: 'on' }) }))}`;
   ctx.progress(90);
 
   return {
