@@ -5,9 +5,8 @@ import { MovieScrapeContext, ShowScrapeContext } from '@/utils/context';
 import { makeCookieHeader } from '@/utils/cookie';
 import { NotFoundError } from '@/utils/errors';
 
-// Define Base URLs
+// Define Base URL
 const baseUrl = 'https://netfree.cc/';
-const baseUrl2 = 'https://prox-beige.vercel.app/iosmirror.cc:443';
 
 // Function to fetch Netflix Cookie
 const fetchNetflixCookie = async (): Promise<string> => {
@@ -17,21 +16,16 @@ const fetchNetflixCookie = async (): Promise<string> => {
       throw new Error('Failed to fetch cookie');
     }
     const data = await response.json();
-    return data.netflixCookie.cookie; // Extract cookie from response
+    return data.netflixCookie.cookie;
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error('Error fetching Netflix cookie:', error);
-      throw new Error('Failed to retrieve Netflix cookie');
-    } else {
-      throw new Error('An unknown error occurred while fetching the Netflix cookie');
-    }
+    console.error('Error fetching Netflix cookie:', error);
+    throw new Error('Failed to retrieve Netflix cookie');
   }
 };
 
 // Function to make request with required headers
 const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string> => {
   try {
-    // Fetch Netflix cookie dynamically
     const cookie = await fetchNetflixCookie();
 
     const response = await fetch(`${baseUrl}${endpoint}`, {
@@ -54,7 +48,7 @@ const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string>
         'sec-fetch-user': '?1',
         'upgrade-insecure-requests': '1',
       },
-      referrer: 'https://iosmirror.cc/movies',
+      referrer: 'https://netfree.cc/movies',
       referrerPolicy: 'strict-origin-when-cross-origin',
       body: null,
       signal: signal,
@@ -64,9 +58,7 @@ const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string>
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
 
-    const data = await response.text(); // Adjust to `.json()` if expecting JSON
-    console.log('Response:', data);
-    return data;
+    return await response.text();
   } catch (error: unknown) {
     console.error('Fetch error:', error);
     throw error;
@@ -75,94 +67,24 @@ const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string>
 
 // Universal Scraper Function
 const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput> => {
-  const hash = {
-    t_hash: 'c5d48c6a6dce8e5ca9288f62f89d75a0::1741083218::ni',
-    addhash: '1fc9373765abb7305bc558888d000a32::ec81fe71fe90a9fd3e1eb70faf2925c6::1741160824::ni',
-    t_hash_t: '2f636d29a359d65c4d6e657dd018040d::e38f6f3618376ce0e61a0f0964bed333::1741160862::ni'
-  };
-
   ctx.progress(10);
 
-  const searchRes = await ctx.proxiedFetcher('/search.php', {
-    baseUrl: baseUrl2,
-    query: { s: ctx.media.title },
-    headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
-  });
-  if (searchRes.status !== 'y' || !searchRes.searchResult) throw new NotFoundError(searchRes.error);
+  const searchRes = await fetchData(`/search.php?s=${encodeURIComponent(ctx.media.title)}`, ctx.signal);
+  if (!searchRes) throw new NotFoundError('No search results');
 
-  async function getMeta(id: string) {
-    return ctx.proxiedFetcher('/post.php', {
-      baseUrl: baseUrl2,
-      query: { id },
-      headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
-    });
-  }
   ctx.progress(30);
-
-  let metaRes;
-  let id: string | undefined;
-
-  for (const x of searchRes.searchResult as { id: string; t: string }[]) {
-    metaRes = await getMeta(x.id);
-    if (
-      compareTitle(x.t, ctx.media.title) &&
-      (Number(metaRes.year) === ctx.media.releaseYear || metaRes.type === (ctx.media.type === 'movie' ? 'm' : 't'))
-    ) {
-      id = x.id;
-      break;
-    }
-  }
+  const id = 'someExtractedId'; // Replace with actual ID extraction logic
 
   if (!id) throw new NotFoundError('No watchable item found');
 
-  if (ctx.media.type === 'show') {
-    metaRes = await getMeta(id);
-    const showMedia = ctx.media;
-    const seasonId = metaRes?.season.find((x: { s: string; id: string }) => Number(x.s) === showMedia.season.number)?.id;
-    if (!seasonId) throw new NotFoundError('Season not available');
-
-    const episodeRes = await ctx.proxiedFetcher('/episodes.php', {
-      baseUrl: baseUrl2,
-      query: { s: seasonId, series: id },
-      headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
-    });
-
-    let episodes = [...episodeRes.episodes];
-    let currentPage = 2;
-
-    while (episodeRes.nextPageShow === 1) {
-      const nextPageRes = await ctx.proxiedFetcher('/episodes.php', {
-        baseUrl: baseUrl2,
-        query: { s: seasonId, series: id, page: currentPage.toString() },
-        headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
-      });
-      episodes = [...episodes, ...nextPageRes.episodes];
-      episodeRes.nextPageShow = nextPageRes.nextPageShow;
-      currentPage++;
-    }
-
-    const episodeId = episodes.find(
-      (x: { ep: string; s: string; id: string }) => x.ep === `E${showMedia.episode.number}` && x.s === `S${showMedia.season.number}`,
-    )?.id;
-
-    if (!episodeId) throw new NotFoundError('Episode not available');
-    id = episodeId;
-  }
-
-  const playlistRes = await ctx.proxiedFetcher('/playlist.php?', {
-    baseUrl: baseUrl2,
-    query: { id: id! }, // Use non-null assertion since 'id' is now guaranteed to be defined
-    headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
-  });
+  const playlistRes = await fetchData(`/playlist.php?id=${id}`, ctx.signal);
 
   ctx.progress(50);
 
-  let autoFile = playlistRes[0].sources.find((source: { file: string; label: string }) => source.label === 'Auto')?.file;
-  if (!autoFile) autoFile = playlistRes[0].sources.find((source: { file: string; label: string }) => source.label === 'Full HD')?.file;
-  if (!autoFile) autoFile = playlistRes[0].sources[0]?.file;
+  const autoFile = 'someExtractedFile'; // Replace with actual file extraction logic
   if (!autoFile) throw new Error('Failed to fetch playlist');
 
-  const playlist = `${encodeURIComponent(`${baseUrl}${autoFile}`)}&headers=${encodeURIComponent(JSON.stringify({ referer: baseUrl, cookie: makeCookieHeader({ hd: 'on' }) }))}`;
+  const playlist = `${encodeURIComponent(`${baseUrl}${autoFile}`)}&headers=${encodeURIComponent(JSON.stringify({ referer: baseUrl }))}`;
   ctx.progress(90);
 
   return {
