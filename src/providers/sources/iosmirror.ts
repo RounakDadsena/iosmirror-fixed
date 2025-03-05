@@ -54,7 +54,7 @@ const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string>
         'sec-fetch-user': '?1',
         'upgrade-insecure-requests': '1',
       },
-      referrer: 'https://iosmirror.cc/movies',
+      referrer: 'https://netfree.cc/mobile/movies',
       referrerPolicy: 'strict-origin-when-cross-origin',
       body: null,
       signal: signal,
