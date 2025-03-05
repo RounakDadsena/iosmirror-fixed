@@ -5,9 +5,11 @@ import { MovieScrapeContext, ShowScrapeContext } from '@/utils/context';
 import { makeCookieHeader } from '@/utils/cookie';
 import { NotFoundError } from '@/utils/errors';
 
+// Define Base URLs
 const baseUrl = 'https://iosmirror.cc';
 const baseUrl2 = 'https://prox-beige.vercel.app/iosmirror.cc:443';
 
+// Function to fetch Netflix Cookie
 const fetchNetflixCookie = async (): Promise<string> => {
   try {
     const response = await fetch('https://anshu78780.github.io/json/cookie.json');
@@ -15,16 +17,63 @@ const fetchNetflixCookie = async (): Promise<string> => {
       throw new Error('Failed to fetch cookie');
     }
     const data = await response.json();
-    return data.netflixCookie.cookie; // Accessing cookie properly after parsing the response
-  } catch (error: unknown) {  // Explicitly declare 'error' as 'unknown'
+    return data.netflixCookie.cookie; // Extract cookie from response
+  } catch (error: unknown) {
     if (error instanceof Error) {
-      throw new Error(`Error fetching Netflix cookie: ${error.message}`);
+      console.error('Error fetching Netflix cookie:', error);
+      throw new Error('Failed to retrieve Netflix cookie');
     } else {
       throw new Error('An unknown error occurred while fetching the Netflix cookie');
     }
   }
 };
 
+// Function to make request with required headers
+const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string> => {
+  try {
+    // Fetch Netflix cookie dynamically
+    const cookie = await fetchNetflixCookie();
+
+    const response = await fetch(`${baseUrl}${endpoint}`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      headers: {
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'en-US,en;q=0.9,en-IN;q=0.8',
+        'cache-control': 'no-cache',
+        pragma: 'no-cache',
+        cookie: cookie,
+        priority: 'u=0, i',
+        'sec-ch-ua': '"Chromium";v="130", "Microsoft Edge";v="130", "Not?A_Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'same-origin',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+      },
+      referrer: 'https://iosmirror.cc/movies',
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      body: null,
+      signal: signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.text(); // Adjust to `.json()` if expecting JSON
+    console.log('Response:', data);
+    return data;
+  } catch (error: unknown) {
+    console.error('Fetch error:', error);
+    throw error;
+  }
+};
+
+// Universal Scraper Function
 const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput> => {
   const hash = {
     t_hash: 'c5d48c6a6dce8e5ca9288f62f89d75a0::1741083218::ni',
@@ -128,6 +177,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   };
 };
 
+// Scraper Initialization
 export const iosmirrorScraper = makeSourcerer({
   id: 'iosmirror',
   name: 'NetMirror',
@@ -137,3 +187,4 @@ export const iosmirrorScraper = makeSourcerer({
   scrapeMovie: universalScraper,
   scrapeShow: universalScraper,
 });
+
