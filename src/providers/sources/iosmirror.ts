@@ -7,7 +7,7 @@ import { NotFoundError } from '@/utils/errors';
 
 // Define Base URLs
 const baseUrl = 'https://iosmirror.cc';
-const baseUrl2 = 'https://prox-beige.vercel.app/iosmirror.cc:443';
+const baseUrl2 = 'https://m3-u8-proxy-sable.vercel.app/iosmirror.cc:443';  // Updated baseUrl2
 
 // Function to fetch Netflix Cookie
 const fetchNetflixCookie = async (): Promise<string> => {
@@ -162,7 +162,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   if (!autoFile) autoFile = playlistRes[0].sources[0]?.file;
   if (!autoFile) throw new Error('Failed to fetch playlist');
 
-  const playlist = `https://prox-beige.vercel.app/m3u8-proxy?url=${encodeURIComponent(`${baseUrl}${autoFile}`)}&headers=${encodeURIComponent(JSON.stringify({ referer: baseUrl, cookie: makeCookieHeader({ hd: 'on' }) }))}`;
+  const playlist = `https://m3-u8-proxy-sable.vercel.app/m3u8-proxy?url=${encodeURIComponent(`${baseUrl}${autoFile}`)}&headers=${encodeURIComponent(JSON.stringify({ referer: baseUrl, cookie: makeCookieHeader({ hd: 'on' }) }))}`;
   ctx.progress(90);
 
   return {
@@ -187,4 +187,3 @@ export const iosmirrorScraper = makeSourcerer({
   scrapeMovie: universalScraper,
   scrapeShow: universalScraper,
 });
-
