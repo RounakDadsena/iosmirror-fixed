@@ -5,9 +5,8 @@ import { MovieScrapeContext, ShowScrapeContext } from '@/utils/context';
 import { makeCookieHeader } from '@/utils/cookie';
 import { NotFoundError } from '@/utils/errors';
 
-// Define Base URLs
+// Define Base URL
 const baseUrl = 'https://netfree.cc/';
-
 
 // Function to fetch Netflix Cookie
 const fetchNetflixCookie = async (): Promise<string> => {
@@ -17,24 +16,18 @@ const fetchNetflixCookie = async (): Promise<string> => {
       throw new Error('Failed to fetch cookie');
     }
     const data = await response.json();
-    return data.netflixCookie.cookie; // Extract cookie from response
+    return data.netflixCookie.cookie;
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error('Error fetching Netflix cookie:', error);
-      throw new Error('Failed to retrieve Netflix cookie');
-    } else {
-      throw new Error('An unknown error occurred while fetching the Netflix cookie');
-    }
+    console.error('Error fetching Netflix cookie:', error);
+    throw new Error('Failed to retrieve Netflix cookie');
   }
 };
 
 // Function to make request with required headers
 const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string> => {
   try {
-    // Fetch Netflix cookie dynamically
     const cookie = await fetchNetflixCookie();
-
-    const response = await fetch(${baseUrl}${endpoint}, {
+    const response = await fetch(`${baseUrl}${endpoint}`, {
       method: 'GET',
       mode: 'cors',
       credentials: 'omit',
@@ -54,17 +47,17 @@ const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string>
         'sec-fetch-user': '?1',
         'upgrade-insecure-requests': '1',
       },
-      referrer: 'https://iosmirror.cc/movies',
+      referrer: 'https://netfree.cc/movies',
       referrerPolicy: 'strict-origin-when-cross-origin',
       body: null,
       signal: signal,
     });
 
     if (!response.ok) {
-      throw new Error(HTTP error! Status: ${response.status});
+      throw new Error(`HTTP error! Status: ${response.status}`);
     }
 
-    const data = await response.text(); // Adjust to .json() if expecting JSON
+    const data = await response.text();
     console.log('Response:', data);
     return data;
   } catch (error: unknown) {
@@ -82,7 +75,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   };
 
   ctx.progress(10);
-
+  
   const searchRes = await ctx.proxiedFetcher('/search.php', {
     baseUrl: baseUrl,
     query: { s: ctx.media.title },
@@ -127,57 +120,35 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
       headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
     });
 
-    let episodes = [...episodeRes.episodes];
-    let currentPage = 2;
-
-    while (episodeRes.nextPageShow === 1) {
-      const nextPageRes = await ctx.proxiedFetcher('/episodes.php', {
-        baseUrl: baseUrl,
-        query: { s: seasonId, series: id, page: currentPage.toString() },
-        headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
-      });
-      episodes = [...episodes, ...nextPageRes.episodes];
-      episodeRes.nextPageShow = nextPageRes.nextPageShow;
-      currentPage++;
-    }
-
-    const episodeId = episodes.find(
-      (x: { ep: string; s: string; id: string }) => x.ep === E${showMedia.episode.number} && x.s === S${showMedia.season.number},
+    const episodeId = episodeRes.episodes.find(
+      (x: { ep: string; s: string; id: string }) => x.ep === `E${showMedia.episode.number}` && x.s === `S${showMedia.season.number}`,
     )?.id;
 
     if (!episodeId) throw new NotFoundError('Episode not available');
     id = episodeId;
   }
 
-  const playlistRes = await ctx.proxiedFetcher('/playlist.php?', {
+  const playlistRes = await ctx.proxiedFetcher('/playlist.php', {
     baseUrl: baseUrl,
-    query: { id: id! }, // Use non-null assertion since 'id' is now guaranteed to be defined
+    query: { id: id! },
     headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
   });
 
   ctx.progress(50);
-
-  let autoFile = playlistRes[0].sources.find((source: { file: string; label: string }) => source.label === 'Auto')?.file;
-  if (!autoFile) autoFile = playlistRes[0].sources.find((source: { file: string; label: string }) => source.label === 'Full HD')?.file;
-  if (!autoFile) autoFile = playlistRes[0].sources[0]?.file;
+  let autoFile = playlistRes[0].sources.find((source: { file: string; label: string }) => source.label === 'Auto')?.file ||
+                 playlistRes[0].sources.find((source: { file: string; label: string }) => source.label === 'Full HD')?.file ||
+                 playlistRes[0].sources[0]?.file;
   if (!autoFile) throw new Error('Failed to fetch playlist');
 
-  const playlist = ${encodeURIComponent(${baseUrl}${autoFile})}&headers=${encodeURIComponent(JSON.stringify({ referer: baseUrl, cookie: makeCookieHeader({ hd: 'on' }) }))};
+  const playlist = `${encodeURIComponent(`${baseUrl}${autoFile}`)}&headers=${encodeURIComponent(JSON.stringify({ referer: baseUrl, cookie: makeCookieHeader({ hd: 'on' }) }))}`;
   ctx.progress(90);
 
   return {
     embeds: [],
-    stream: [{
-      id: 'primary',
-      playlist,
-      type: 'hls',
-      flags: [flags.CORS_ALLOWED],
-      captions: [],
-    }],
+    stream: [{ id: 'primary', playlist, type: 'hls', flags: [flags.CORS_ALLOWED], captions: [] }],
   };
 };
 
-// Scraper Initialization
 export const iosmirrorScraper = makeSourcerer({
   id: 'iosmirror',
   name: 'NetMirror',
@@ -187,5 +158,3 @@ export const iosmirrorScraper = makeSourcerer({
   scrapeMovie: universalScraper,
   scrapeShow: universalScraper,
 });
-
-remove proxy from this
