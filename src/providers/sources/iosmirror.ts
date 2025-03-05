@@ -5,8 +5,9 @@ import { MovieScrapeContext, ShowScrapeContext } from '@/utils/context';
 import { makeCookieHeader } from '@/utils/cookie';
 import { NotFoundError } from '@/utils/errors';
 
-// Define Base URL
+// Define Base URLs
 const baseUrl = 'https://iosmirror.cc';
+const baseUrl2 = 'https://prox-beige.vercel.app/iosmirror.cc:443';
 
 // Function to fetch Netflix Cookie
 const fetchNetflixCookie = async (): Promise<string> => {
@@ -83,7 +84,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   ctx.progress(10);
 
   const searchRes = await ctx.proxiedFetcher('/search.php', {
-    baseUrl: baseUrl, // Use baseUrl instead of baseUrl2
+    baseUrl: baseUrl2,
     query: { s: ctx.media.title },
     headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
   });
@@ -91,7 +92,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
 
   async function getMeta(id: string) {
     return ctx.proxiedFetcher('/post.php', {
-      baseUrl: baseUrl, // Use baseUrl instead of baseUrl2
+      baseUrl: baseUrl2,
       query: { id },
       headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
     });
@@ -121,7 +122,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
     if (!seasonId) throw new NotFoundError('Season not available');
 
     const episodeRes = await ctx.proxiedFetcher('/episodes.php', {
-      baseUrl: baseUrl, // Use baseUrl instead of baseUrl2
+      baseUrl: baseUrl2,
       query: { s: seasonId, series: id },
       headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
     });
@@ -131,7 +132,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
 
     while (episodeRes.nextPageShow === 1) {
       const nextPageRes = await ctx.proxiedFetcher('/episodes.php', {
-        baseUrl: baseUrl, // Use baseUrl instead of baseUrl2
+        baseUrl: baseUrl2,
         query: { s: seasonId, series: id, page: currentPage.toString() },
         headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
       });
@@ -149,7 +150,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   }
 
   const playlistRes = await ctx.proxiedFetcher('/playlist.php?', {
-    baseUrl: baseUrl, // Use baseUrl instead of baseUrl2
+    baseUrl: baseUrl2,
     query: { id: id! }, // Use non-null assertion since 'id' is now guaranteed to be defined
     headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
   });
