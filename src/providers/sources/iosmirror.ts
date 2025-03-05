@@ -83,26 +83,26 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
 
   ctx.progress(10);
 
-  const searchRes = await fetchData('/search.php', ctx.signal, {
+  const searchRes = await ctx.proxiedFetcher('/search.php', {
+    baseUrl: baseUrl2,
     query: { s: ctx.media.title },
     headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
   });
-  const searchJson = JSON.parse(searchRes); // Assuming the response is JSON, adjust accordingly
-  if (searchJson.status !== 'y' || !searchJson.searchResult) throw new NotFoundError(searchJson.error);
+  if (searchRes.status !== 'y' || !searchRes.searchResult) throw new NotFoundError(searchRes.error);
 
   async function getMeta(id: string) {
-    const metaRes = await fetchData('/post.php', ctx.signal, {
+    return ctx.proxiedFetcher('/post.php', {
+      baseUrl: baseUrl2,
       query: { id },
       headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
     });
-    return JSON.parse(metaRes); // Assuming JSON response
   }
   ctx.progress(30);
 
   let metaRes;
   let id: string | undefined;
 
-  for (const x of searchJson.searchResult as { id: string; t: string }[]) {
+  for (const x of searchRes.searchResult as { id: string; t: string }[]) {
     metaRes = await getMeta(x.id);
     if (
       compareTitle(x.t, ctx.media.title) &&
@@ -121,7 +121,8 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
     const seasonId = metaRes?.season.find((x: { s: string; id: string }) => Number(x.s) === showMedia.season.number)?.id;
     if (!seasonId) throw new NotFoundError('Season not available');
 
-    const episodeRes = await fetchData('/episodes.php', ctx.signal, {
+    const episodeRes = await ctx.proxiedFetcher('/episodes.php', {
+      baseUrl: baseUrl2,
       query: { s: seasonId, series: id },
       headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
     });
@@ -130,7 +131,8 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
     let currentPage = 2;
 
     while (episodeRes.nextPageShow === 1) {
-      const nextPageRes = await fetchData('/episodes.php', ctx.signal, {
+      const nextPageRes = await ctx.proxiedFetcher('/episodes.php', {
+        baseUrl: baseUrl2,
         query: { s: seasonId, series: id, page: currentPage.toString() },
         headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
       });
@@ -147,7 +149,8 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
     id = episodeId;
   }
 
-  const playlistRes = await fetchData('/playlist.php?', ctx.signal, {
+  const playlistRes = await ctx.proxiedFetcher('/playlist.php?', {
+    baseUrl: baseUrl2,
     query: { id: id! }, // Use non-null assertion since 'id' is now guaranteed to be defined
     headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
   });
