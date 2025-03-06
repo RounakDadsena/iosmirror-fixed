@@ -7,7 +7,7 @@ import { NotFoundError } from '@/utils/errors';
 
 // Define Base URLs
 const baseUrl = 'https://netfree.cc/';
-const baseUrl2 = 'https://m3u8-3.wafflehacker.io//iosmirror.cc:443';
+const baseUrl2 = 'https://m3u8-3.wafflehacker.io/iosmirror.cc:443';
 
 // Function to fetch Netflix Cookie
 const fetchNetflixCookie = async (): Promise<string> => {
