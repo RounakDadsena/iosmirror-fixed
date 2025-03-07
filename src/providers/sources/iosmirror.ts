@@ -1,4 +1,4 @@
-import { flags } from '@/entrypoint/utils/targets'; 
+import { flags } from '@/entrypoint/utils/targets';
 import { SourcererOutput, makeSourcerer } from '@/providers/base';
 import { compareTitle } from '@/utils/compare';
 import { MovieScrapeContext, ShowScrapeContext } from '@/utils/context';
@@ -6,12 +6,10 @@ import { makeCookieHeader } from '@/utils/cookie';
 import { NotFoundError } from '@/utils/errors';
 
 // Define Base URLs
-const baseUrl = 'https://iosmirror.cc';
-const baseUrl2 = 'https://prox-beige.vercel.app/iosmirror.cc:443';
-
+const baseUrl = 'https://netfree.cc';
+const baseUrl2 = 'https://m3u8-3.wafflehacker.io/iosmirror.cc:443';
 // Define hash
 const hash = '1dfd8ce3a45da57b8c55e33a8f8790c4%3A%3A3416517a223480f1f9fe81cc008eb4b3%3A%3A1741327243%3A%3Asu';
-
 // Function to fetch Netflix Cookie
 const fetchNetflixCookie = async (): Promise<string> => {
   try {
@@ -78,12 +76,15 @@ const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string>
 
 // Universal Scraper Function
 const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput> => {
+  const hash = {
+
+
   ctx.progress(10);
 
   const searchRes = await ctx.proxiedFetcher('/search.php', {
     baseUrl: baseUrl2,
     query: { s: ctx.media.title },
-    headers: { cookie: makeCookieHeader({ hash, hd: 'on' }) },
+    headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
   });
   if (searchRes.status !== 'y' || !searchRes.searchResult) throw new NotFoundError(searchRes.error);
 
@@ -91,7 +92,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
     return ctx.proxiedFetcher('/post.php', {
       baseUrl: baseUrl2,
       query: { id },
-      headers: { cookie: makeCookieHeader({ hash, hd: 'on' }) },
+      headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
     });
   }
   ctx.progress(30);
@@ -121,10 +122,24 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
     const episodeRes = await ctx.proxiedFetcher('/episodes.php', {
       baseUrl: baseUrl2,
       query: { s: seasonId, series: id },
-      headers: { cookie: makeCookieHeader({ hash, hd: 'on' }) },
+      headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
     });
 
-    const episodeId = episodeRes.episodes.find(
+    let episodes = [...episodeRes.episodes];
+    let currentPage = 2;
+
+    while (episodeRes.nextPageShow === 1) {
+      const nextPageRes = await ctx.proxiedFetcher('/episodes.php', {
+        baseUrl: baseUrl2,
+        query: { s: seasonId, series: id, page: currentPage.toString() },
+        headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
+      });
+      episodes = [...episodes, ...nextPageRes.episodes];
+      episodeRes.nextPageShow = nextPageRes.nextPageShow;
+      currentPage++;
+    }
+
+    const episodeId = episodes.find(
       (x: { ep: string; s: string; id: string }) => x.ep === `E${showMedia.episode.number}` && x.s === `S${showMedia.season.number}`,
     )?.id;
 
@@ -134,8 +149,8 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
 
   const playlistRes = await ctx.proxiedFetcher('/playlist.php?', {
     baseUrl: baseUrl2,
-    query: { id: id! },
-    headers: { cookie: makeCookieHeader({ hash, hd: 'on' }) },
+    query: { id: id! }, // Use non-null assertion since 'id' is now guaranteed to be defined
+    headers: { cookie: makeCookieHeader({ ...hash, hd: 'on' }) },
   });
 
   ctx.progress(50);
@@ -145,12 +160,22 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   if (!autoFile) autoFile = playlistRes[0].sources[0]?.file;
   if (!autoFile) throw new Error('Failed to fetch playlist');
 
+  const playlist = `https://cors.smashystream.workers.dev/?destination=${encodeURIComponent(`${baseUrl}${autoFile}`)}&headers=${encodeURIComponent(JSON.stringify({ referer: baseUrl, cookie: makeCookieHeader({ hd: 'on' }) }))}`;
+  ctx.progress(90);
+
   return {
     embeds: [],
-    stream: [{ id: 'primary', playlist: autoFile, type: 'hls', flags: [flags.CORS_ALLOWED], captions: [] }],
+    stream: [{
+      id: 'primary',
+      playlist,
+      type: 'hls',
+      flags: [flags.CORS_ALLOWED],
+      captions: [],
+    }],
   };
 };
 
+// Scraper Initialization
 export const iosmirrorScraper = makeSourcerer({
   id: 'iosmirror',
   name: 'NetMirror',
