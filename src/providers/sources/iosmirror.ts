@@ -7,7 +7,7 @@ import { NotFoundError } from '@/utils/errors';
 
 // Define Base URLs
 const baseUrl = 'https://netfree.cc/';
-const baseUrl2 = 'https://m3u8-3.wafflehacker.io/iosmirror.cc:443';
+const baseUrl2 = 'https://prox-beige.vercel.app/iosmirror.cc:443';
 
 // Function to fetch Netflix Cookie
 const fetchNetflixCookie = async (): Promise<string> => {
@@ -75,11 +75,7 @@ const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string>
 
 // Universal Scraper Function
 const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput> => {
-  const hash = {
-    t_hash: 'c5d48c6a6dce8e5ca9288f62f89d75a0::1741083218::ni',
-    addhash: '1fc9373765abb7305bc558888d000a32::ec81fe71fe90a9fd3e1eb70faf2925c6::1741160824::ni',
-    t_hash_t: '2f636d29a359d65c4d6e657dd018040d::e38f6f3618376ce0e61a0f0964bed333::1741160862::ni'
-  };
+
 
   ctx.progress(10);
 
@@ -162,7 +158,7 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
   if (!autoFile) autoFile = playlistRes[0].sources[0]?.file;
   if (!autoFile) throw new Error('Failed to fetch playlist');
 
-  const playlist = `https://m3u8-3.wafflehacker.io/proxy?url=${encodeURIComponent(`${baseUrl}${autoFile}`)}&headers=${encodeURIComponent(JSON.stringify({ referer: baseUrl, cookie: makeCookieHeader({ hd: 'on' }) }))}`;
+  const playlist = `https://cors.smashystream.workers.dev/?destination=${encodeURIComponent(`${baseUrl}${autoFile}`)}&headers=${encodeURIComponent(JSON.stringify({ referer: baseUrl, cookie: makeCookieHeader({ hd: 'on' }) }))}`;
   ctx.progress(90);
 
   return {
