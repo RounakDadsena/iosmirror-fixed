@@ -6,7 +6,7 @@ import { makeCookieHeader } from '@/utils/cookie';
 import { NotFoundError } from '@/utils/errors';
 
 // Define Base URLs
-const baseUrl = 'https://netfree.cc';
+const baseUrl = 'https://iosmirror.cc';
 const baseUrl2 = 'https://m3u8-3.wafflehacker.io/iosmirror.cc:443';
 // Define hash
 const hash = '1dfd8ce3a45da57b8c55e33a8f8790c4%3A%3A3416517a223480f1f9fe81cc008eb4b3%3A%3A1741327243%3A%3Asu';
@@ -21,14 +21,19 @@ const fetchNetflixCookie = async (): Promise<string> => {
     const data = await response.json();
     return data.netflixCookie.cookie; // Extract cookie from response
   } catch (error: unknown) {
-    console.error('Error fetching Netflix cookie:', error);
-    throw new Error('Failed to retrieve Netflix cookie');
+    if (error instanceof Error) {
+      console.error('Error fetching Netflix cookie:', error);
+      throw new Error('Failed to retrieve Netflix cookie');
+    } else {
+      throw new Error('An unknown error occurred while fetching the Netflix cookie');
+    }
   }
 };
 
 // Function to make request with required headers
 const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string> => {
   try {
+    // Fetch Netflix cookie dynamically
     const cookie = await fetchNetflixCookie();
 
     const response = await fetch(`${baseUrl}${endpoint}`, {
@@ -61,13 +66,16 @@ const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string>
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
 
-    return await response.text();
+    const data = await response.text(); // Adjust to `.json()` if expecting JSON
+    console.log('Response:', data);
+    return data;
   } catch (error: unknown) {
     console.error('Fetch error:', error);
     throw error;
   }
 };
 
+// Universal Scraper Function
 const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput> => {
   ctx.progress(10);
 
@@ -103,9 +111,10 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
 
   if (!id) throw new NotFoundError('No watchable item found');
 
-  if (ctx.media.type === 'show') {
+  if (ctx.media.type === 'show' && 'season' in ctx.media) {
     metaRes = await getMeta(id);
-    const seasonId = metaRes?.season.find((x: { s: string; id: string }) => Number(x.s) === ctx.media.season.number)?.id;
+    const showMedia = ctx.media;
+    const seasonId = metaRes?.season.find((x: { s: string; id: string }) => Number(x.s) === showMedia.season.number)?.id;
     if (!seasonId) throw new NotFoundError('Season not available');
 
     const episodeRes = await ctx.proxiedFetcher('/episodes.php', {
@@ -114,25 +123,30 @@ const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Pr
       headers: { cookie: makeCookieHeader({ hash, hd: 'on' }) },
     });
 
-    const episodeId = episodeRes.episodes.find((x: { ep: string; s: string; id: string }) => x.ep === `E${ctx.media.episode.number}` && x.s === `S${ctx.media.season.number}`)?.id;
+    const episodeId = episodeRes.episodes.find(
+      (x: { ep: string; s: string; id: string }) => x.ep === `E${showMedia.episode?.number}` && x.s === `S${showMedia.season?.number}`,
+    )?.id;
+
     if (!episodeId) throw new NotFoundError('Episode not available');
     id = episodeId;
   }
 
-  const playlistRes = await ctx.proxiedFetcher('/playlist.php', {
+  const playlistRes = await ctx.proxiedFetcher('/playlist.php?', {
     baseUrl: baseUrl2,
-    query: { id },
+    query: { id: id || '' },
     headers: { cookie: makeCookieHeader({ hash, hd: 'on' }) },
   });
 
   ctx.progress(50);
-  let autoFile = playlistRes[0].sources.find((source: { file: string; label: string }) => source.label === 'Auto')?.file || playlistRes[0].sources.find((source: { file: string; label: string }) => source.label === 'Full HD')?.file || playlistRes[0].sources[0]?.file;
+
+  let autoFile = playlistRes[0].sources.find((source: { file: string; label: string }) => source.label === 'Auto')?.file;
+  if (!autoFile) autoFile = playlistRes[0].sources.find((source: { file: string; label: string }) => source.label === 'Full HD')?.file;
+  if (!autoFile) autoFile = playlistRes[0].sources[0]?.file;
   if (!autoFile) throw new Error('Failed to fetch playlist');
 
-  const playlist = `https://cors.smashystream.workers.dev/?destination=${encodeURIComponent(`${baseUrl}${autoFile}`)}&headers=${encodeURIComponent(JSON.stringify({ referer: baseUrl, cookie: makeCookieHeader({ hd: 'on' }) }))}`;
   ctx.progress(90);
 
-  return { embeds: [], stream: [{ id: 'primary', playlist, type: 'hls', flags: [flags.CORS_ALLOWED], captions: [] }] };
+  return { embeds: [], stream: [{ id: 'primary', playlist: autoFile, type: 'hls', flags: [flags.CORS_ALLOWED], captions: [] }] };
 };
 
 export const iosmirrorScraper = makeSourcerer({ id: 'iosmirror', name: 'NetMirror', rank: 182, disabled: false, flags: [flags.CORS_ALLOWED], scrapeMovie: universalScraper, scrapeShow: universalScraper });
