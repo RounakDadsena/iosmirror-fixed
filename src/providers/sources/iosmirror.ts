@@ -6,7 +6,7 @@ import { makeCookieHeader } from '@/utils/cookie';
 import { NotFoundError } from '@/utils/errors';
 
 // Define Base URLs
-const baseUrl = 'https://netfree.cc/';
+const baseUrl = 'https://iosmirror.cc';
 const baseUrl2 = 'https://prox-beige.vercel.app/iosmirror.cc:443';
 
 // Define hash
