@@ -6,7 +6,7 @@ import { makeCookieHeader } from '@/utils/cookie';
 import { NotFoundError } from '@/utils/errors';
 
 // Define Base URLs
-const baseUrl = 'https://iosmirror.cc';
+const baseUrl = 'https://netmirror.cc';
 const baseUrl2 = 'https://m3u8-3.wafflehacker.io/iosmirror.cc:443';
 // Define hash
 const hash = '1dfd8ce3a45da57b8c55e33a8f8790c4%3A%3A3416517a223480f1f9fe81cc008eb4b3%3A%3A1741327243%3A%3Asu';
