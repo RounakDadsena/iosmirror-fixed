@@ -76,7 +76,7 @@ const fetchData = async (endpoint: string, signal: AbortSignal): Promise<string>
 
 // Universal Scraper Function
 const universalScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput> => {
-  const hash = {
+
 
 
   ctx.progress(10);
