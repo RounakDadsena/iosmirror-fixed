@@ -7,7 +7,7 @@ import { NotFoundError } from '@/utils/errors';
 import { Caption } from '../captions';
 
 // Thanks Nemo for this API, and Custom for hosting!
-const BASE_URL = 'https://fed-api-js.up.railway.app';
+const BASE_URL = 'https://fed-api.pstream.org/cache';
 
 // this is so fucking useless
 const languageMap: Record<string, string> = {
@@ -50,21 +50,12 @@ interface StreamData {
 async function comboScraper(ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput> {
   const apiUrl =
     ctx.media.type === 'movie'
-      ? `${BASE_URL}/movie/${ctx.media.imdbId}`
-      : `${BASE_URL}/tv/${ctx.media.tmdbId}/${ctx.media.season.number}/${ctx.media.episode.number}`;
+      ? `${BASE_URL}/${ctx.media.imdbId}`
+      : `${BASE_URL}/${ctx.media.imdbId}/${ctx.media.season.number}/${ctx.media.episode.number}`;
 
-  const userToken = getUserToken();
-  if (userToken) {
-    console.log('Custom token found:');
-  }
+  const data = await ctx.fetcher<StreamData>(apiUrl);
 
-  const data = await ctx.fetcher<StreamData>(apiUrl, {
-    headers: {
-      ...(userToken && { 'ui-token': userToken }),
-    },
-  });
-
-  if (data?.error === 'No results found in MovieBox search') {
+  if (data?.error) {
     throw new NotFoundError('No stream found');
   }
   if (!data) throw new NotFoundError('No response from API');
@@ -151,11 +142,11 @@ async function comboScraper(ctx: ShowScrapeContext | MovieScrapeContext): Promis
   };
 }
 
-export const FedAPIScraper = makeSourcerer({
-  id: 'fedapi',
-  name: 'FED API (4K)',
-  rank: 260,
-  disabled: !getUserToken(),
+export const FedAPIDBScraper = makeSourcerer({
+  id: 'fedapidb',
+  name: 'FED DB (Beta)',
+  rank: 259,
+  disabled: !!getUserToken(),
   flags: [flags.CORS_ALLOWED],
   scrapeMovie: comboScraper,
   scrapeShow: comboScraper,
